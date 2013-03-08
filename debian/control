@@ -1,0 +1,18 @@
+Source: libitmages
+Section: graphics
+Priority: extra
+Maintainer: Dmitry Kor <rmPIC30@gmail.com>
+Standards-Version: 3.9.1
+Build-Depends: debhelper (>= 7), cdbs, cmake, libvala-0.14-dev, libglib2.0-dev, valac-0.14, libdbus-glib-1-dev, libgtk2.0-dev, pkg-config, libgexiv2-dev, libunity-dev, libdbusmenu-glib-dev, libnautilus-extension-dev
+Homepage: https://launchpad.net/~itmages
+
+Package: libitmages
+Depends: libdbus-glib-1-2, itmages-service (>= 0.36), libgtk2.0-0, libglib2.0-0, libgexiv2-0, unity, unity-common, nautilus (>=3.0)
+Provides: itmages-nautilus-extension, itmages-unity-plugin
+Conflicts: itmages-nautilus-extension, itmages-unity-plugin
+Replaces: itmages-nautilus-extension, itmages-unity-plugin
+Architecture: any
+Description: Graphic GTK Library and default launcher for upload pictures to service ITmages.ru
+ This library provides graphical user interface
+ allows you to upload your favorite images, photos, 
+ screenshots of image hosting ITmages.ru

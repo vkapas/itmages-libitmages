@@ -1,0 +1,314 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ITmages
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.06\n"
+"Report-Msgid-Bugs-To: harestomper@gmail.com\n"
+"POT-Creation-Date: 2011-07-04 10:03+0400\n"
+"PO-Revision-Date: 2011-08-19 HO:MI+ZONE\n"
+"Last-Translator: Khramtsov Voldemar <harestomper@gmail.com>\n"
+"Language-Team: Russian <ru@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "%.2fB"
+msgstr "%.2fБ"
+
+msgid "<b>Name:</b> %s"
+msgstr "<b>Имя:</b> %s"
+
+msgid "<b>Size:</b> %s, <b>Res.:</b> %dx%dpix"
+msgstr "<b>Размер:</b> %s, <b>Разр.:</b> %dx%dpix"
+
+msgid "<b>Status: </b>%s"
+msgstr "<b>Состояние: </b>%s"
+
+msgid "Account"
+msgstr "Аккаунт"
+
+msgid "Added %d files. Total size is %s"
+msgstr "Добавылено %d файлов. Общий размер %s"
+
+msgid "BB full size image"
+msgstr "BB большая картинка"
+
+msgid "BB preview for forum"
+msgstr "BB для форума превью"
+
+msgid "Cancel action 'upload' for selected or all files of this list."
+msgstr "Отменить загрузку для отмеченных или всех файлов из списка."
+
+msgid "Cancel all actions for this picture."
+msgstr "Отменить все действия над этим изображением."
+
+msgid "Cancel upload"
+msgstr "Загрузка отменена"
+
+msgid "Cancelled"
+msgstr "Отменено"
+
+msgid "Close this infobar."
+msgstr "Закрыть эту информационную строку."
+
+msgid "Close this window and exit from this program."
+msgstr "Закрыть это окно и выйти из этой программы."
+
+msgid "Copy '%s' to clipboard"
+msgstr "Копировать '%s' в буфер обмена"
+
+msgid "Copy selected link of this picture to clipboard."
+msgstr "Скопировать выбранную ссылку для этого изображения в буфер обмена."
+
+msgid "Copy selected to clipboard"
+msgstr "Копировать выбранное"
+
+msgid "Done!"
+msgstr "Готово!"
+
+msgid "Error"
+msgstr "Ошибка"
+
+msgid "Failed"
+msgstr "Не получилось"
+
+msgid "File"
+msgstr "Файл"
+
+msgid "HTML full size image"
+msgstr "HTML большая картинка"
+
+msgid "HTML preview for forum"
+msgstr "HTML для форума превью"
+
+msgid "HTTP proxy"
+msgstr "HTTP прокси"
+
+msgid "ITmages uploader with unity extension"
+msgstr "Unity-плагин для загрузки изображений на ITmages"
+
+msgid "In Queue."
+msgstr "В очереди."
+
+msgid "Is run"
+msgstr "В процессе"
+
+msgid "KB"
+msgstr "КБ"
+
+msgid "Link to full size image"
+msgstr "Ссылка на изображение"
+
+msgid "Link to preview"
+msgstr "Ссылка на превью"
+
+msgid "Links"
+msgstr "Ссылки"
+
+msgid "Login:"
+msgstr "Логин:"
+
+msgid "MB"
+msgstr "МБ"
+
+msgid "Network"
+msgstr "Сеть"
+
+msgid "Node:"
+msgstr "Адрес:"
+
+msgid "Not found any icons"
+msgstr "Не нашел ни одной иконки"
+
+msgid "Not found any one selected items."
+msgstr "Не нашел ни одного выбранного элемента."
+
+msgid "Not found default icontheme."
+msgstr "Не найдена тема иконок поумолчанию"
+
+msgid "Not valid login or password"
+msgstr "Пароль или логин не прошли проверку"
+
+msgid "Open dialog for choose and add new files to current list."
+msgstr "Открыть диалог для выбора и добавления файлов в текущий список."
+
+msgid "Open settings dialog."
+msgstr "Открыть диалог настроек."
+
+msgid "Open the default web-browser with link to this uploaded picture."
+msgstr ""
+"Открыть браузер по умолчанию с сылкой для этого загруженного изображения."
+
+msgid "Page with all links"
+msgstr "Страница с сылками"
+
+msgid "Password:"
+msgstr "Пароль:"
+
+msgid "Port:"
+msgstr "Порт:"
+
+msgid "Proxy"
+msgstr "Прокси"
+
+msgid "Remember me"
+msgstr "Запомнить данные"
+
+msgid "Remove all selected items from list."
+msgstr "Удалить все выбранные элементы из списка."
+
+msgid "Remove this picture from current list."
+msgstr "Удалить это изображение из текущего списка."
+
+msgid "Removed %d item(s) from list."
+msgstr "Удалено %d элемент(ов) из списка."
+
+msgid "SOCKS4 proxy"
+msgstr "SOCKS4 прокси"
+
+msgid "SOCKS5 proxy"
+msgstr "SOCKS5 прокси"
+
+msgid "Select/Unselect all items of list."
+msgstr "Отметить/снять выделение для всех элементов списка."
+
+msgid "Short link"
+msgstr "Короткая ссылка"
+
+msgid ""
+"Sorry but all a specified files was skipped.\n"
+"Please check for their size and format and try again."
+msgstr ""
+"Извините, но все указанные файлы были пропущены.\n"
+"Пожалуйста проверьте их размер и формат и попробуйте еще раз."
+
+msgid "Start"
+msgstr "Старт"
+
+msgid "Start action 'Upload' for all files from current list."
+msgstr "Запустить загрузку для всех файлов текущего списка."
+
+msgid "Start upload"
+msgstr "Запустить загрузку"
+
+msgid "Stop"
+msgstr "Стоп"
+
+msgid "Stop upload"
+msgstr "Остановить загрузку"
+
+msgid "Take all or selected"
+msgstr "Взять все или отмеченные"
+
+msgid "Take the latest"
+msgstr "Взять последние"
+
+msgid "Type:"
+msgstr "Тип:"
+
+msgid ""
+"Unable to create a query. Please open the settings dialog and check the "
+"authorization data and proxies settings."
+msgstr ""
+"Не получилось создать запрос. Пожалуйста, откройте диалог настройки и "
+"проверьте данные авторизации и настройки прокси."
+
+msgid "Upload failed!"
+msgstr "Загрузка не удалась"
+
+msgid "Upload is cancelled!"
+msgstr "Загрузка отменена!"
+
+msgid "Upload is successful!"
+msgstr "Загрузилось успешно."
+
+msgid "Upload the pictures to image hosting ITmages"
+msgstr "Отправляет изображения на хостинг картинок ITmages"
+
+msgid "User:"
+msgstr "Имя:"
+
+msgid "Wait"
+msgstr "Ждет"
+
+msgid "Warning!"
+msgstr "Внимание!"
+
+msgid "Without profile"
+msgstr "Без аккаунта"
+
+msgid "Without proxy"
+msgstr "Без прокси"
+
+msgid "auth failed"
+msgstr "Пароль или логин не прошли проверку"
+
+msgid "Upload this picture to ITmages"
+msgstr "Загрузить эту картинку на ITmages"
+
+msgid "Uploads the images to hosting ITmages"
+msgstr "Отправляет изображения на хостинг картинок ITmages"
+
+
+# Items for menu and imaging
+msgid "Resize images"
+msgstr "Изменить размер"
+
+msgid "Rotate images"
+msgstr "Повернуть"
+
+msgid "Utils"
+msgstr "Утилиты"
+
+msgid "Autostart"
+msgstr "Автостарт"
+
+msgid "Rotate by"
+msgstr "Повернуть на"
+
+msgid "<b>Rotate</b>"
+msgstr "<b>Поворот</b>"
+
+msgid "<b>Common</b>"
+msgstr "<b>Общее</b>"
+
+msgid "Overwrite original file"
+msgstr "Перезаписать оригинальный файл"
+
+msgid "Add to upload list"
+msgstr "Добавить в список загрузки"
+
+msgid "Save to:"
+msgstr "Сохранять в:"
+
+msgid "Select folder to save"
+msgstr "Выбрать каталог для сохранения"
+
+msgid "<b>Resize</b>"
+msgstr "<b>Изменение размера</b>"
+
+msgid "Constrain proportions"
+msgstr "Соблюдать пропорции"
+
+msgid "Resize to"
+msgstr "Подогнать к размеру"
+
+msgid "Resize by"
+msgstr "Изменить на"
+
+msgid "Show this dialog"
+msgstr "Показывать этот диалог"
+
+msgid "Imaging"
+msgstr "Утилиты"
+
+msgid "Sorry. The multithreading is not supported."
+msgstr "Победа! Многопоточность не поддерживается."
+
+
+###

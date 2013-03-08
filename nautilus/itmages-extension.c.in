@@ -1,0 +1,298 @@
+/*
+ *  itmages-extension.c
+ *
+ *  Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Library General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public
+ *  License along with this library; if not, write to the Free
+ *  Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *  Author: Voldemar Khramtsov <harestomper@gmail.com>
+ *
+ */
+/*
+ EXTENSION="itmages-extension" ; gcc -DPIC -fPIC -c "./$EXTENSION.c" `pkg-config --cflags gtk+-2.0,glib-2.0,libnautilus-extension,gconf-2.0` && gcc -shared -o "lib${EXTENSION}.so" "./$EXTENSION.o"
+*/
+
+#include <config.h>
+#include <stdlib.h>
+#include <glib-object.h>
+#include <glib/gi18n-lib.h>
+#include <gio/gio.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <libnautilus-extension/nautilus-menu-provider.h>
+// #include <itmages-launcher.h>
+
+typedef struct ItmagesExtension
+{
+    GObject object;
+} ItmagesExtension;
+
+
+typedef struct _ItmagesExtensionClass
+{
+    GObjectClass parent_class;
+} ItmagesExtensionClass;
+
+typedef struct _ITPbar
+{
+    GtkProgressBar *pbar;
+    GtkButton *cnclbutton;
+    GtkLabel *label;
+} ITPbar;
+
+
+static void itmages_extension_instance_init (ItmagesExtension      *img);
+static void itmages_extension_class_init    (ItmagesExtensionClass *class);
+
+
+static GType provider_types[1];
+static GType itmages_extension_type = 0;
+static void  itmages_extension_register_type(GTypeModule *module);
+
+
+const gchar *GIF = "image/gif";
+const gchar *PNG = "image/png";
+const gchar *JPG = "image/jpeg";
+const gchar *BLUE = "/usr/share/pixmaps/@EXECUTABLE@.png";
+
+
+static void
+register_icons (void)
+{
+    GtkIconFactory *iconfactory = gtk_icon_factory_new ();
+    GdkPixbuf *redpix, *greenpix, *bluepix;
+
+    bluepix = gdk_pixbuf_new_from_file (BLUE, NULL);
+    gtk_icon_factory_add (iconfactory, BLUE, gtk_icon_set_new_from_pixbuf (bluepix));
+
+    gtk_icon_factory_add_default (iconfactory);
+}
+
+
+
+static void*
+item_activated_callback (NautilusMenuItem* item, GList *files)
+{
+    GList *f = NULL;
+//    GList *filenames = NULL;
+    char *mime_type;
+    char *fname;
+    const gchar *tmp1 = NULL;
+    const gchar *tmp2 = NULL;
+    gchar *text = "";
+
+    for (f = files; f != NULL; f = f->next)
+    {
+        NautilusFileInfo* file_info = (NautilusFileInfo*)(f->data);
+        mime_type = (char*) nautilus_file_info_get_mime_type(file_info);
+        GFile *gfile = nautilus_file_info_get_location (file_info);
+        fname = g_file_get_path (gfile);
+
+        if (!strcmp (mime_type, GIF) ||
+            !strcmp (mime_type, PNG) ||
+            !strcmp (mime_type, JPG))
+        {
+            tmp1 = text;
+            tmp2 = fname;
+            text = g_strconcat (tmp1, " \"", tmp2, "\"", NULL);
+        }
+    }
+
+    tmp1 = text;
+    if (strlen (tmp1) > 0) {
+        text = g_strdup_printf ("@EXECUTABLE@ %s &", tmp1);
+        system (text);
+    }
+
+    g_free (text);
+    g_free (mime_type);
+    g_free (fname);
+}
+
+
+
+static gboolean can_show_menu_item (GList *files) {
+    GList *f = NULL;
+    char *mime_type;
+
+    for (f = files; f != NULL; f = g_list_next (f))
+    {
+        NautilusFileInfo* file_info = (NautilusFileInfo*)(f->data);
+        mime_type = (char*) nautilus_file_info_get_mime_type (file_info);
+        if (!strcmp (mime_type, GIF) ||
+            !strcmp (mime_type, PNG) ||
+            !strcmp (mime_type, JPG))
+            {
+                g_free (mime_type);
+                return TRUE;
+            }
+    }
+    return FALSE;
+}
+
+
+static GList* itmages_extension_get_file_items (
+                                            NautilusMenuProvider* provider,
+                                            GtkWidget* window, GList* files
+                                        ) {
+    NautilusMenuItem *item;
+    GList *items = NULL;
+  
+    g_return_val_if_fail (NAUTILUS_IS_MENU_PROVIDER (provider), NULL);
+    g_return_val_if_fail (GTK_IS_WIDGET (window), NULL);
+
+
+    if (files != NULL) {
+
+        if (can_show_menu_item (files)) {
+            item = nautilus_menu_item_new (
+                                            "ItmagesExtension::upload",
+                                          _("Upload this picture to ITmages"),
+                                          _("Uploads the images to hosting ITmages"),
+                                          BLUE
+                                        );
+            g_signal_connect (
+                                    item,
+                                    "activate",
+                                    G_CALLBACK (item_activated_callback),
+                                    nautilus_file_info_list_copy (files)
+                             );
+                        
+            items = g_list_prepend (items, item);
+        }
+    }
+    return items;
+}
+
+
+static GList* get_background_items(
+                                        NautilusMenuProvider *provider,
+                                        GtkWidget *window,
+                                        NautilusFileInfo *folder
+                                    ) {
+    return NULL;
+}
+
+/*
+static GList *
+get_toolbar_items(NautilusMenuProvider *provider, GtkWidget *window, NautilusFileInfo *folder)
+{
+    return NULL;
+}
+*/
+/******************************************************************************
+ * GObject Registration
+ ******************************************************************************/
+
+static void 
+itmages_extension_menu_provider_interface_init (NautilusMenuProviderIface *iface,
+                                                                  gpointer data)
+{
+    iface->get_file_items = itmages_extension_get_file_items;
+//    iface->get_toolbar_items = get_toolbar_items;
+//    iface->get_background_items = get_background_items;
+}
+
+
+void
+itmages_extension_register_type (GTypeModule *module)
+{
+    static const GTypeInfo info = {
+                        sizeof (ItmagesExtensionClass),
+                        (GBaseInitFunc) NULL,
+                        (GBaseFinalizeFunc) NULL,
+                        (GClassInitFunc) itmages_extension_class_init,
+                        NULL, 
+                        NULL,
+                        sizeof (ItmagesExtension),
+                        0,
+                        (GInstanceInitFunc) itmages_extension_instance_init,
+                    };
+
+    static const GInterfaceInfo menu_provider_iface_info = {
+        (GInterfaceInitFunc) itmages_extension_menu_provider_interface_init,
+        NULL,
+        NULL
+    };
+
+    itmages_extension_type = g_type_module_register_type (
+                                                            module,
+                                                            G_TYPE_OBJECT,
+                                                            "ItmagesExtension",
+                                                            &info,
+                                                            0
+                                                           );
+
+    g_type_module_add_interface (
+                                    module,
+                                    itmages_extension_type,
+                                    NAUTILUS_TYPE_MENU_PROVIDER,
+                                    &menu_provider_iface_info
+                                );
+}
+
+
+static void 
+itmages_extension_instance_init (ItmagesExtension *img)
+{
+}
+
+static void
+itmages_extension_class_init (ItmagesExtensionClass *class)
+{
+}
+
+
+
+GType 
+itmages_extension_get_type()
+{
+    if (itmages_extension_type == 0)
+    {
+        itmages_extension_register_type (NULL);
+    }
+
+    return itmages_extension_type;
+}
+
+/******************************************************************************
+ * Nautilus' Plug-In-Interface
+ ******************************************************************************/
+void
+nautilus_module_initialize (GTypeModule *module)
+{
+    g_print ("Initializing itmages extension\n");
+    itmages_extension_register_type(module);
+    provider_types[0] = itmages_extension_get_type ();
+
+    bindtextdomain (GETTEXT_PACKAGE, GNOMELOCALEDIR);
+    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+    register_icons ();
+}
+
+void 
+nautilus_module_shutdown()
+{
+  g_print("Shutting down itmages extension\n");
+}
+
+void 
+nautilus_module_list_types (const GType **types, int *count)
+{
+  g_return_if_fail (types != NULL);
+  g_return_if_fail (count != NULL);
+
+  *types = provider_types;
+  *count = G_N_ELEMENTS (provider_types);
+}

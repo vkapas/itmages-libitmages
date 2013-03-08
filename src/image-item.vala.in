@@ -1,0 +1,410 @@
+//------------------------------------------------------------------------------
+
+namespace Itmages {
+//------------------------------------------------------------------------------
+    public class PictureItem : Gtk.ToolItem {
+
+        public string filename {get; private set;}
+        public bool upstatus {get; private set;}
+        public string upreason {get; private set;}
+        public int image_width {get; private set;}
+        public int image_height {get; private set;}
+        public string str_filesize {get; private set;}
+        public int filesize {get; private set;}
+        public string lk_page {get; private set;}
+        public string full_size {get; private set;}
+        public string small_size {get; private set;}
+        public string html_full {get; private set;}
+        public string html_small {get; private set;}
+        public string bb_full {get; private set;}
+        public string bb_small {get; private set;}
+        public string short_link {get; private set;}
+        
+        public string _current_status_ = Const.STATUS_WAIT;
+        public bool now {get; set;}
+
+        private Gtk.Image preview;
+        private Gtk.Button btncopy;
+        private Gtk.Button btnopen;
+        private Gtk.Button btnclose;
+        private Gtk.Spinner spinner;
+        private Gtk.Label labelinfo;
+        private Gtk.Label primaryinfo;
+        private RadioButtonMenu combo;
+        private Gtk.ProgressBar progress;
+        private Gtk.CheckButton switcher;
+        private Gdk.Pixbuf preview_pixbuf;
+        private Gtk.ToggleButton btncancel;
+        private Gtk.HBox typeswitcher;
+
+        private GLib.FileMonitor monitor;
+        private GLib.Cancellable cancellable;
+
+        private static GLib.List<Gtk.Widget> action_widgets;
+        
+        public signal void cancel_event (string fname);
+        public signal void close_event (PictureItem widget);
+        public signal void open_with_program (string link);
+        public signal void copy_event (string link);
+        
+        public PictureItem.from_file (string fname, int active = 0) throws GLib.Error {
+            Gtk.Frame frame;
+            Gtk.Table table;
+            Gtk.Alignment align;
+            Gtk.HBox box;
+            string markup;
+            Gtk.Image image;
+            int width, height;
+
+            if (!Utils.create_pixbuf (fname, out preview_pixbuf, out width, out height)) {
+                throw new GLib.Error (GLib.Quark.from_string (_("Failed to open the file")), 1, "");
+            }
+
+            filename = fname;
+            image_width = width;
+            image_height = height;
+            update_filesizes (fname);
+
+//            Gtk.rc_parse_string ("style \"frame\"\n{\nGtkFrame::shadow-type = GTK_SHADOW_ETCHED_IN\n}\nclass \"GtkFrame\" style \"frame\"");
+            frame = new Gtk.Frame (null);
+            preview = new Gtk.Image.from_pixbuf (preview_pixbuf);
+            action_widgets = new GLib.List<Gtk.Widget> ();
+            var mainbox = new Gtk.HBox (false, 0);
+            switcher = new Gtk.CheckButton ();
+
+            btnopen = new Gtk.Button ();
+            image = new Gtk.Image.from_icon_name (Icons.BROWSER, Icons.SIZE);
+            btnopen.set_image (image);
+            btnopen.set_relief (Gtk.ReliefStyle.NONE);
+            btnopen.tooltip_text = _("Open the default web-browser with link to this uploaded picture.");
+
+            btncopy = new Gtk.Button ();
+            image = new Gtk.Image.from_icon_name (Icons.COPY, Icons.SIZE);
+            btncopy.set_image (image);
+            btncopy.set_relief (Gtk.ReliefStyle.NONE);
+            btncopy.tooltip_text = _("Copy selected link of this picture to clipboard.");
+
+            btncancel = new Gtk.ToggleButton ();
+            image = new Gtk.Image.from_icon_name (Icons.STOP, Icons.SIZE);
+            btncancel.set_image (image);
+            btncancel.set_relief (Gtk.ReliefStyle.NONE);
+            btncancel.tooltip_text = _("Cancel all actions for this picture.");
+
+            btnclose = new Gtk.Button ();
+            image = new Gtk.Image.from_icon_name (Icons.CANCEL, Icons.SIZE);
+            btnclose.set_image (image);
+            btnclose.set_relief (Gtk.ReliefStyle.NONE);
+            btnclose.tooltip_text = _("Remove this picture from current list.");
+
+            box = new Gtk.HBox (false, 0);
+            table = new Gtk.Table (3, 4, false);
+            progress = new Gtk.ProgressBar ();
+            spinner = new Gtk.Spinner ();
+
+            combo = new RadioButtonMenu ();
+            combo.append_from_valist ((string[]) Const.COMBO_ITEMS);
+            combo.set_active_value (active);
+            combo.set_relief (Gtk.ReliefStyle.NONE);
+
+            var label0 = new Gtk.Label (null);
+            align = new Gtk.Alignment (0.0f, 0.5f, 1.0f, 1.0f);
+            typeswitcher = new Gtk.HBox (false, 4);
+            label0.xalign = 0.0f;
+            label0.set_markup (_("<b>Type: </b>"));
+            align.add (label0);
+            typeswitcher.pack_start (align, true, false, 0);
+            typeswitcher.pack_start (combo, false, false, 0);
+            
+            markup = _(Const.MARKUP_NAME).printf (GLib.Markup.escape_text (GLib.Path.get_basename (filename)));
+            var label1 = new Gtk.Label (null);
+            label1.set_markup (markup);
+            label1.xalign = 0.0f;
+            label1.set_tooltip_text (filename);
+            label1.ellipsize = Pango.EllipsizeMode.MIDDLE;
+            label1.width_chars = 35;
+
+            primaryinfo = new Gtk.Label (null);
+            primaryinfo.xalign = 0.0f;
+            update_primary_info ();
+
+            markup = _(Const.MARKUP_STATUS).printf (_(Const.LABEL_WAIT));
+            labelinfo = new Gtk.Label (null);
+            labelinfo.set_markup (markup);
+            labelinfo.xalign = 0.0f;
+
+            align = new Gtk.Alignment (0.0f, 0.0f, 0.0f, 0.0f);
+            align.add (switcher);
+            table.attach (align, 0, 1, 0, 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 0, 0);
+
+            Utils.init_widget (progress, Const.STATUS_RUN);
+            Utils.init_widget (btncopy, Const.STATUS_DONE);
+            Utils.init_widget (btnopen, Const.STATUS_DONE);
+            Utils.init_widget (typeswitcher, Const.STATUS_DONE);
+            Utils.init_widget (btncancel, Const.STATUS_RUN, Const.STATUS_WAIT);
+            Utils.init_widget (spinner, Const.STATUS_WAIT, Const.STATUS_RUN);
+            Utils.init_widget (labelinfo, Const.STATUS_FAIL, Const.STATUS_WAIT);
+            Utils.init_widget (btnclose, Const.STATUS_RUN, Const.STATUS_FAIL, Const.STATUS_WAIT);
+
+            align = new Gtk.Alignment (0.0f, 0.5f, 0.0f, 0.0f);
+            align.add (preview);
+            align.set_padding (0, 0, 0, 10);
+            table.attach (align, 0, 1, 0, 3, 0, 0, 0, 0);
+
+            align = new Gtk.Alignment (0.0f, 0.5f, 0.0f, 0.0f);
+            align.add (typeswitcher);
+            table.attach (align, 1, 2, 2, 3, Gtk.AttachOptions.FILL, 0, 0, 0);
+            table.attach (label1, 1, 2, 0, 1, Gtk.AttachOptions.FILL, 0, 0, 0);
+            table.attach (primaryinfo, 1, 2, 1, 2, Gtk.AttachOptions.FILL, 0, 0, 0);
+            table.attach (labelinfo, 1, 2, 2, 3, Gtk.AttachOptions.FILL, 0, 0, 0);
+            table.attach (progress, 1, 3, 2, 3, Gtk.AttachOptions.FILL, 0, 0, 0);
+
+            var btntable = new Gtk.Table (4, 1, false);
+            btntable.attach (btnclose, 0, 1, 0, 1, 0, 0, 1, 0);
+            btntable.attach (btncancel, 0, 1, 1, 2, 0, 0, 1, 0);
+            btntable.attach (btnopen, 0, 1, 2, 3, 0, 0, 1, 0);
+            btntable.attach (btncopy, 0, 1, 3, 4, 0, 0, 1, 0);
+
+            align = new Gtk.Alignment (0.0f, 0.5f, 1.0f, 1.0f);
+            align.set_padding (5, 5, 5, 0);
+            align.add (table);
+            mainbox.pack_start (align, true, true, 0);
+
+            align = new Gtk.Alignment (1.0f, 1.0f, 1.0f, 1.0f);
+//            align.set_padding (5, 5, 5, 0);
+            align.add (btntable);
+            mainbox.pack_end (align, false, false, 0);
+            frame.add (mainbox);
+@gtk3only@            frame.get_style_context ().add_class (Gtk.STYLE_CLASS_FRAME);
+
+            align = new Gtk.Alignment (0.5f, 0.5f, 1.0f, 1.0f);
+            align.set_padding (3, 3, 3, 3);
+            align.add (frame);
+            this.add (align);
+            this.set_homogeneous (true);
+            
+            table.set_col_spacings (0);
+            btntable.border_width = 0;
+            frame.set_shadow_type (Gtk.ShadowType.ETCHED_IN);
+            current_status = Const.STATUS_WAIT;
+            set_homogeneous (true);
+            
+            btnopen.clicked.connect (btnopen_clicked_cb);
+            btncopy.clicked.connect (() => {copy_event (get_link (combo.active));});
+            btnclose.clicked.connect (() => {close_event (this);});
+            btncancel.toggled.connect_after (() => {
+                                                        if (btncancel.active) cancel_event (filename);
+                                                        if (cancelled == btncancel.active) cancelled = btncancel.active;
+                                                    });
+
+            cancellable = new GLib.Cancellable ();
+            var gfile = GLib.File.new_for_path (fname);
+            try {
+                monitor = gfile.monitor (GLib.FileMonitorFlags.NONE, cancellable);
+                monitor.changed.connect (monitor_changed_cb);
+            } catch (GLib.Error mon_err) {
+                debug (mon_err.message);
+            }
+        }
+
+
+
+        private void update_primary_info () {
+            string markup = _(Const.MARKUP_INFO).printf (str_filesize, image_width, image_height);
+            primaryinfo.set_markup (markup);
+        }
+
+
+        private void update_filesizes (string fname) {
+            var fileinfo = Posix.Stat ();
+            Posix.stat (fname, out fileinfo);
+            this.filesize = (int) fileinfo.st_size;
+            str_filesize = Utils.convert_fsize_to_string ((float) this.filesize);
+        }
+
+
+        private void monitor_changed_cb (GLib.File file, GLib.File? other_file, GLib.FileMonitorEvent event_type) {
+
+            if (event_type == GLib.FileMonitorEvent.CREATED || event_type == GLib.FileMonitorEvent.CHANGED) {
+                int width, height;
+                string? fname = file.get_path ();
+                if (Utils.create_pixbuf (fname, out preview_pixbuf, out width, out height)) {
+                    image_width = width;
+                    image_height = height;
+                    update_filesizes (fname);
+                    update_primary_info ();
+                    this.lk_page = null;
+                    this.full_size = null;
+                    this.small_size = null;
+                    this.html_full = null;
+                    this.html_small = null;
+                    this.bb_full = null;
+                    this.bb_small = null;
+                    this.short_link = null;
+                    this.preview.set_from_pixbuf (this.preview_pixbuf);
+                    this.current_status = Const.STATUS_WAIT;
+                } else {
+                    debug ("Dont updated preview");
+                }
+
+            } else if (event_type == GLib.FileMonitorEvent.DELETED ||
+                        event_type == GLib.FileMonitorEvent.UNMOUNTED ||
+                        event_type == GLib.FileMonitorEvent.PRE_UNMOUNT) {
+                if (!cancellable.is_cancelled ()) cancellable.cancel ();
+                close_event (this);
+            }
+        }
+
+
+        public string current_status {
+            set {
+                    this._current_status_ = value;
+                    bool val;
+                    Gtk.Widget[] widgets = {typeswitcher, spinner, btncopy, btnopen, btnclose, btncancel, labelinfo, progress};
+                    string? label = null;
+
+                    foreach (Gtk.Widget widget in widgets) {
+                        val = widget.get_data (this._current_status_);
+                        widget.no_show_all = !val;
+                        widget.visible = val;
+                    }
+
+                    if (cancelled) {
+                        label = _(Const.LABEL_CNCL);
+                        fraction = 0.0;
+                    } else {
+                        switch (this._current_status_) {
+                            case Const.STATUS_WAIT: {
+                                label = _(Const.LABEL_WAIT);
+                                break;
+                            }
+                            case Const.STATUS_FAIL: {
+                                label = _(Const.LABEL_FAIL);
+                                break;
+                            }
+                            case Const.STATUS_DONE: {
+                                label = _(Const.LABEL_DONE);
+                                break;
+                            }
+                            default: break;
+                        }
+                    }
+
+                    if (label != null) {
+                        this.labelinfo.set_markup (_(Const.MARKUP_STATUS).printf (label));
+                    } else {
+                        this.labelinfo.set_markup ("");
+                    }
+                    this.show_all ();
+                }
+            get { return this._current_status_;}
+        }
+        
+
+        public double fraction {
+            set {
+                    this.progress.fraction = value;
+                    if (value > 0 && current_status == Const.STATUS_WAIT) {
+                        current_status = Const.STATUS_RUN;
+                    }
+                }
+            get {
+                    return this.progress.fraction;
+                }
+        }
+
+        public void set_info (
+                                bool status,
+                                string reason,
+                                string? id,
+                                string? key,
+                                string? full,
+                                string? small,
+                                string? server,
+                                string? short_
+                               ) {
+
+            upstatus = status;
+            upreason = reason;
+
+            if (status) {
+                full_size = @"http://$(server).static.itmages.ru/$(full)";
+                small_size = @"http://$(server).static.itmages.ru/$(small)";
+                lk_page = @"http://itmages.ru/image/view/$(id)/$(key)";
+                html_full = @"<a target='_blank' href='http://itmages.ru/image/view/$(id)/$(key)'><img src='http://$(server).static.itmages.ru/$(full)' ></a>";
+                html_small = @"<a target='_blank' href='http://itmages.ru/image/view/$(id)/$(key)'><img src='http://$(server).static.itmages.ru/$(small)' ></a>";
+                bb_full = @"[url=http://itmages.ru/][img]http://$(server).static.itmages.ru/$(full)[/img][/url]";
+                bb_small = @"[url=http://itmages.ru/image/view/$(id)/$(key)][img]http://$(server).static.itmages.ru/$(small)[/img][/url]";
+                short_link = (short_.length > 0)? @"http://itmag.es/$(short_)": "";
+                current_status = Const.STATUS_DONE;
+
+                string[] list_of_links = {full_size, small_size, lk_page, html_full, html_small, bb_full, bb_small, short_link};
+
+                for (int i = 0; i < Const.COMBO_ITEMS.length; i++) {
+                    combo.set_content (i, list_of_links[i]);
+                }
+
+            } else {
+                current_status = Const.STATUS_FAIL;
+            }
+
+        }
+
+
+        public string get_link (int active) {
+            int key;
+            string value;
+            if (combo.is_changed) {
+                key = combo.active;
+            } else {
+                key = active;
+            }
+            value = combo.get_content (key);
+            return value;
+        }
+
+
+        public void set_active_type (int value) {
+            bool v1, v2;
+            v1 = combo.is_ignored_index (value);
+            v2 = combo.is_changed;
+            if (!combo.is_ignored_index (value)) {
+                combo.active = value;
+            }
+        }
+
+
+        public bool is_selected {
+            get {return switcher.get_active ();}
+            set {switcher.set_active (value);}
+        }
+
+
+        public bool cancelled {
+            get {return btncancel.active;}
+            set {
+                    btncancel.active = value;
+                    this.current_status = Const.STATUS_WAIT;
+                }
+        }
+
+        public void stop () {
+            if (current_status == Const.STATUS_RUN) current_status = Const.STATUS_WAIT;
+        }
+
+
+        private void btnopen_clicked_cb () {
+            int num = 2;
+            string link;
+            if (this.current_status == Const.STATUS_DONE) {
+                if (combo.active < 3 || combo.active == 7) {
+                    num = combo.active;
+                }
+                link = combo.get_content (num);
+                open_with_program (link);
+            }
+        }
+    }
+//------------------------------------------------------------------------------
+}
+
+//------------------------------------------------------------------------------

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+    <schema path="/org/gnome/itmages/" id="org.gnome.itmages.library">
+        <key type="b" name="verbose">
+            <default>false</default>
+        </key>
+        <key type="b" name="first-start">
+            <default>true</default>
+        </key>
+        <key type="b" name="save-data">
+            <default>false</default>
+        </key>
+        <key type="b" name="without-profile">
+            <default>true</default>
+        </key>
+        <key type="b" name="resize-cudtom">
+            <default>true</default>
+        </key>
+        <key type="b" name="resize-aspect">
+            <default>true</default>
+        </key>
+        <key type="b" name="imaging-dialog-show">
+            <default>true</default>
+        </key>
+        <key type="b" name="uploader-select-all">
+            <default>false</default>
+        </key>
+        <key type="b" name="uploader-autostart-upload">
+            <default>false</default>
+        </key>
+        <key type="b" name="add-after-modification">
+            <default>true</default>
+        </key>
+        <key type="b" name="imaging-overwrite-file">
+            <default>false</default>
+        </key>
+        <key type="s" name="userdata">
+            <default>''</default>
+        </key>
+        <key type="s" name="proxydata">
+            <default>''</default>
+        </key>
+        <key type="s" name="proxynode">
+            <default>''</default>
+        </key>
+        <key type="s" name="uploader-last-folder">
+            <default>'/tmp'</default>
+        </key>
+        <key type="s" name="imaging-modif-folder">
+            <default>''</default>
+        </key>
+        <key type="i" name="proxyport">
+            <default>8080</default>
+        </key>
+        <key type="i" name="proxytype">
+            <default>-100</default>
+        </key>
+        <key type="i" name="uploader-last-linktype">
+            <default>0</default>
+        </key>
+        <key type="i" name="uploader-window-height">
+            <default>0</default>
+        </key>
+        <key type="i" name="uploader-infobar-hide-delay">
+            <default>60</default>
+        </key>
+        <key type="i" name="resize-width">
+            <default>1280</default>
+        </key>
+        <key type="i" name="resize-height">
+            <default>800</default>
+        </key>
+        <key type="i" name="resize-percent">
+            <default>50</default>
+        </key>
+        <key type="i" name="rotate-angle">
+            <default>0</default>
+        </key>
+    </schema>
+</schemalist>

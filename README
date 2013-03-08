@@ -1,0 +1,19 @@
+
+
+
+Building.
+
+    cmake CMakeLists.txt [[-DWITH_UNITY=true|filse][-DWITH_NAUTILUS=true|false][-DGTKVER=2.0|3.0]]
+    make
+    make [DESTDIR=<destination dir>] install
+
+If unity or/and nautilus is not installed, than
+the arguments for cmake a will be ignored.
+
+After installation, you should be run the commands:
+
+This installation new schema to your system 
+glib-compile-schemas /usr/share/glib-2.0/schemas 
+
+for installationg new icons to your system
+update-icon-cache /usr/share/icons/highcolor

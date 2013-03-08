@@ -1,0 +1,924 @@
+
+
+
+//------------------------------------------------------------------------------
+
+namespace Itmages {
+//------------------------------------------------------------------------------
+    public class UploaderWindow : Gtk.Window {
+
+        private PictureItem item;
+        private Gtk.Toolbar mainbox;
+        private GLib.Queue<string> queuefiles;
+        private UploaderInfoBar infobar;
+        private UploaderToolbar toolbar;
+        public Gtk.VBox content_area;
+        private Config dconfig;
+        private Gtk.Viewport vport;
+        private Gtk.ScrolledWindow scw;
+        private ItDbusClientIface client;
+        private UploaderMiniClient miniclient;
+        private static UploaderWindow instance = null;
+        
+        private bool tmppixbuf = false;
+        private bool tmpuris = false;
+        private int exceptions_count = 0;
+        private const int max_exceptions_count = 3;
+        public bool is_started {set; get;}
+        private bool temp_autostart {set; get;}
+
+        public signal void quiting ();
+        public signal void progress_changed (int cnt, double fraction);
+        public signal void started (int cnt);
+        public signal void complete (bool status, int cnt);
+        public signal void got_file (string filename);
+
+        private GLib.List<string> last_names;
+        
+        private UploaderWindow () {
+            
+            last_names = new GLib.List<string> ();
+            dconfig = Config.get_default ();
+            queuefiles = new GLib.Queue<string> ();
+            scw = new Gtk.ScrolledWindow (null, null);
+            vport = new Gtk.Viewport (null, null);
+            content_area = new Gtk.VBox (false, 2);
+            mainbox = new Gtk.Toolbar ();
+            infobar = new UploaderInfoBar ();
+            toolbar = new UploaderToolbar (dconfig.last_type);
+            scw.set_policy (Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
+            mainbox.show_arrow = false;
+            mainbox.orientation = Gtk.Orientation.VERTICAL;
+            mainbox.set_style (Gtk.ToolbarStyle.ICONS);
+            toolbar.select_all = dconfig.select_all;
+
+@gtk3only@           toolbar.get_style_context ().add_class (Gtk.STYLE_CLASS_PRIMARY_TOOLBAR);
+//           mainbox.get_style_context ().add_class (Gtk.STYLE_CLASS_PRIMARY_TOOLBAR);
+            scw.add (vport);
+            vport.add (mainbox);
+            content_area.pack_start (toolbar, false, false, 0);
+            content_area.pack_start (scw, true, true, 0);
+            content_area.pack_end (infobar, false, false, 0);
+            this.add (content_area);
+            height_request = 450;
+            mainbox.set_name ("PictureItemsBox");
+            mainbox.set_border_width (0);
+
+            Gtk.TargetEntry[4] dnd_list = new Gtk.TargetEntry[4];
+            dnd_list[0] = {"image/png", 0, IMAGE_PNG};
+            dnd_list[1] = {"image/jpeg", 0, IMAGE_JPG};
+            dnd_list[2] = {"image/gif", 0, IMAGE_GIF};
+            dnd_list[3] = {"text/uri-list", 0, URI_LIST};
+            Gtk.drag_dest_set (
+                                mainbox,
+                                Gtk.DestDefaults.MOTION |
+                                Gtk.DestDefaults.HIGHLIGHT |
+                                Gtk.DestDefaults.DROP,
+                                dnd_list,
+                                Gdk.DragAction.COPY);
+
+            mainbox.drag_data_received.connect (vport_got_data_cb);
+            mainbox.drag_motion.connect (vport_drag_motion_cb);
+            mainbox.drag_drop.connect (vport_drag_drop_cb);
+
+            destroy.connect (() => {quiting ();});
+            toolbar.exit_activated.connect (() => {quiting ();});
+            toolbar.add_activated.connect (toolbar_add_activated_cb);
+            toolbar.stop_activated.connect (upload_stop);
+            toolbar.remove_activated.connect (toolbar_remove_selected_cb);
+            toolbar.config_activated.connect (toolbar_config_activated_cb);
+            toolbar.upload_activated.connect (upload_start);
+            toolbar.radio_toggled.connect (toolbar_link_type_changed_cb); //(toolbar(int index);
+            toolbar.check_toggled.connect (toolbar_select_all_items_cb); // (bool active);
+            toolbar.copy_activated.connect (toolbar_copy_activated_cb);
+            toolbar.resize_activated.connect (toolbar_resize_activated_cb);
+            toolbar.rotate_activated.connect (toolbar_rotate_activated_cb);
+            toolbar.imaging_activated.connect (toolbar_imaging_activated_cb);
+            toolbar.autostart_toggled.connect ((a) => {dconfig.autostart = a;});
+            this.got_file.connect (new_file_appended);
+            reconnect ();
+
+            set_resizable (true);
+            set_position (Gtk.WindowPosition.CENTER);
+            miniclient = null;
+            toolbar.autostart = dconfig.autostart;
+            Gtk.rc_parse_string (Const.GTKRC_STYLE);
+            this.show.connect (this_show_all_cb);
+
+    }
+
+        private void this_show_all_cb () {
+            var screen = this.get_screen ();
+            Gdk.Geometry geometry = {};
+            geometry.min_width = 480;
+            geometry.min_height = 460;
+            geometry.max_width = 550;
+            geometry.max_height = screen.get_width ();
+            geometry.base_width = 500;
+            geometry.base_height = screen.get_width () - 200;
+            geometry.width_inc = 1;
+            geometry.height_inc = 1;
+            geometry.min_aspect = 0.001;
+            geometry.max_aspect = 0.001;
+            geometry.win_gravity = Gdk.Gravity.CENTER | Gdk.Gravity.WEST | Gdk.Gravity.EAST;
+
+            set_geometry_hints (
+                                    this,
+                                    geometry,
+                                    Gdk.WindowHints.MIN_SIZE |
+                                    Gdk.WindowHints.MAX_SIZE |
+//                                    Gdk.WindowHints.BASE_SIZE |
+//                                    Gdk.WindowHints.USER_SIZE |
+//                                    Gdk.WindowHints.RESIZE_INC |
+                                    Gdk.WindowHints.WIN_GRAVITY |
+                                    Gdk.WindowHints.USER_POS |
+                                    Gdk.WindowHints.POS
+                                );
+//                                    Gdk.WindowHints.MAX_SIZE |
+        }
+
+
+        public static UploaderWindow get_default () {
+            if (instance == null) {
+                instance = new UploaderWindow ();
+            }
+
+            return UploaderWindow.instance;
+        }
+
+
+        private void new_file_appended (string filename) {
+            if (dconfig.autostart || this.temp_autostart) {
+                this.upload_start ();
+                this.temp_autostart = false;
+            }
+        }
+
+
+        private bool vport_drag_motion_cb (
+                                                Gdk.DragContext context,
+                                                int x,
+                                                int y,
+                                                uint time_
+                                            ) {
+            Gdk.drag_status (context, Gdk.DragAction.COPY, time_);
+            this.tmppixbuf = false;
+            this.tmpuris = false;
+            return true;
+        }
+
+
+        private bool vport_drag_drop_cb (
+                                                Gdk.DragContext context,
+                                                int x,
+                                                int y,
+                                                uint time_
+                                          ) {
+            return true;
+        }
+
+
+        private void vport_got_data_cb (
+                                            Gdk.DragContext context,
+                                            int x,
+                                            int y,
+                                            Gtk.SelectionData selection_data,
+                                            uint info,
+                                            uint time_
+                                        ) {
+            bool success = false;
+            bool autostart = false;
+            if (info == IMAGE_PNG || info == IMAGE_JPG || info == IMAGE_GIF) {
+                if (tmppixbuf) return;
+                var pixbuf = selection_data.get_pixbuf ();
+
+                if (pixbuf != null) {
+                    // Creaate the temporary name
+                    var time = new GLib.DateTime.now_local ();
+                    string filename = GLib.Path.build_filename (
+                                    GLib.Environment.get_user_special_dir (UserDirectory.PICTURES),
+                                    "image_%02d-%02d-%d_%02d-%02d-%02d.png".printf (
+                                    time.get_month (),
+                                    time.get_day_of_month (),
+                                    time.get_year (),
+                                    time.get_hour (),
+                                    time.get_minute (),
+                                    time.get_second ()));
+                    try {
+                        pixbuf.save (filename, "png", "compression", "1");
+                        success = true;
+                        tmppixbuf = true;
+                        this.append (filename);
+                    } catch (GLib.Error err) {
+                    }
+                }
+                    
+            } else if (info == URI_LIST) {
+                if (tmpuris) return;
+                foreach (string uri in selection_data.get_uris ()) {
+                    try {
+                        if (this.append (GLib.Filename.from_uri (uri))) autostart = true;
+                    } catch (GLib.ConvertError err) {
+                    }
+                }
+                success = true;
+                tmpuris = true;
+            }
+
+            Gdk.drop_finish (context, success, time_);
+        }
+
+
+        private bool check_for_exists (string fname) {
+            PictureItem item;
+            return find_by_name (fname, out item);
+        }
+        
+
+        private void calculate_total_size (out int num, out int total_size) {
+            total_size = 0;
+            num = (int) mainbox.get_children ().length ();
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                total_size += ((PictureItem) widget).filesize;
+            }
+        }
+        
+
+        private bool find_by_name (string fname, out PictureItem item) {
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                if (fname == ((PictureItem) widget).filename) {
+                    item = (PictureItem) widget;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+        private void select_all_items (bool setting) {
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                ((PictureItem) widget).is_selected = setting;
+            }
+        }
+
+
+        private void toolbar_remove_selected_cb () {
+            int cnt = 0;
+            string messg, sts;
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                if (((PictureItem) widget).is_selected) {
+                    mainbox.remove ((PictureItem) widget);
+                    cnt++;
+                }
+            }
+            if (cnt > 0) {
+                messg = _("Removed %d item(s) from list.").printf (cnt);
+                sts = "i";
+            } else {
+                messg = _("Not found any one selected items.");
+                sts = "w";
+            }
+            infobar.push_message (messg, sts);
+        }
+
+
+        private void toolbar_link_type_changed_cb (int index) {
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                ((PictureItem) widget).set_active_type (index);
+            }
+            dconfig.last_type = index;
+        }
+
+
+        private void toolbar_select_all_items_cb (bool active) {
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                ((PictureItem) widget).is_selected = active;
+            }
+            dconfig.select_all = active;
+        }
+
+
+        private void toolbar_config_activated_cb () {
+            var dialog = new ItmagesNetworkDialog (this);
+            dialog.run ();
+            dialog.hide ();
+            dialog.destroy ();
+        }
+        
+
+        private void toolbar_add_activated_cb () {
+            string startdir = dconfig.last_folder;
+            string[] fnames;
+            var dialog = new PictureChooser (this);
+            if (dialog.start (ref startdir, out fnames)) {
+                dconfig.last_folder = startdir;
+                foreach (var fname in fnames) {
+                    this.append (fname);
+                }
+            }
+            dialog.hide ();
+            dialog.destroy ();
+        }
+
+
+        /*
+         * Start upload
+         */
+        public void upload_start () {
+            if (this.is_started) return;
+
+            int count;
+            double fraction;
+            this.set_property_now (true);
+
+            if (get_average_fraction_and_num (out count, out fraction)) {
+                this.started (count);
+                this.is_started = true;
+                perform_upload ();
+            } else {
+                this.upload_stop ();
+            }
+        }
+
+
+        /*
+         * Stop upload for all items or selected items only
+         */
+        public void upload_stop () {
+            complete (this.is_started, 0);
+            this.is_started = false;
+            this.set_property_now (false);
+        }
+
+
+
+        private bool get_next_from_queue (out string fname) {
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                PictureItem item = (PictureItem) widget;
+
+                if (item.current_status == Const.STATUS_WAIT  && !item.cancelled) {
+                    fname = item.filename;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+        public bool append (string filename, bool astart = false) {
+            int64 size;
+            string mime;
+            bool result = false;
+            GLib.FileInfo file_info;
+            var file = GLib.File.new_for_commandline_arg (filename);
+
+            try {
+                file_info = file.query_info ("standard::content-type", 0, null);
+                mime = file_info.get_content_type ();
+                file_info = file.query_info (GLib.FILE_ATTRIBUTE_STANDARD_SIZE, 0, null);
+                size = file_info.get_size ();
+
+                if ((mime == F_JPEG || mime == F_PNG || mime == F_GIF) && (size > 20 && size < 6291456)) {
+                    queuefiles.push_tail (filename);
+                    result = true;
+                }
+
+            } catch (Error e) {}
+
+//            GLib.Idle.add ((GLib.SourceFunc) append_async);
+            this.temp_autostart = astart;
+            Gdk.threads_add_idle (append_async);
+            return result;
+        }
+
+
+        private  bool append_async () {
+
+            if (queuefiles.is_empty ()) return false;
+            var filename = queuefiles.pop_head ();
+            if (filename == null) return false;
+
+            if (!GLib.FileUtils.test (filename, GLib.FileTest.IS_DIR) &&
+                GLib.FileUtils.test (filename, GLib.FileTest.EXISTS) &&
+                !check_for_exists (filename)) {
+
+                PictureItem item;
+                if (this.create_new_picture_item (filename, out item)) {
+                    mainbox.add (item);
+                    mainbox.show_all ();
+                    this.got_file (filename);
+                }
+
+                var vadj = this.scw.get_vadjustment ();
+                vadj.value = vadj.upper;
+                Gtk.main_iteration ();
+            }
+            if (queuefiles.is_empty ()) {
+                int num, tsize;
+                string strsize;
+                calculate_total_size (out num, out tsize);
+                strsize = Utils.convert_fsize_to_string ((float) tsize);
+                infobar.push_message (_("Added %d files. Total size is %s").printf (num, strsize), "i");
+            }
+            return false;
+        }
+
+
+        private void pictureitem_close_event_cb (PictureItem widget) {
+            mainbox.remove (widget);
+            mainbox.show_all ();
+        }
+
+
+        private void pictureitem_open_with_program_cb (string link) {
+            Posix.system (@"xdg-open $link");
+        }
+
+
+        //------------------------ DBus ------------------------------------------
+        private bool reconnect () {
+            client = null;
+            try{
+                client = GLib.Bus.get_proxy_sync<ItDbusClientIface> (
+                                                    GLib.BusType.SESSION,
+                                                    ITMAGES_DBUS_IFACE,
+                                                    ITMAGES_DBUS_PATH
+                                                );
+
+                client.action_started.connect (client_action_started_cb);
+     //           client.action_complete.connect (client_action_complete_cb);
+                client.action_complete_string_line.connect (client_action_complete_string_line_cb);
+                client.progress_event.connect_after (client_progress_event_cb);
+                
+                exceptions_count = 0;
+
+            } catch (GLib.IOError err) {
+                exceptions_count += 1;
+
+                if (exceptions_count >= max_exceptions_count) {
+                    infobar.push_message (_(err.message), "e");
+                } else {
+                    reconnect ();
+                }
+            }
+            return (client != null);
+        }
+        
+
+        private void client_action_started_cb (string action, string fname) {
+        }
+
+
+
+        private string parse_line (string line, string key) {
+            foreach (string keyval in line.split (";;")) {
+                string[] k = keyval.split (":");
+                if (k[0] == key) return (k.length > 1)? k[1]: "";
+            }
+            return "";
+        }
+
+        
+        private void client_action_complete_string_line_cb (string line) { 
+            bool status;
+            string reason, fname, action;
+
+            debug (@"$line");
+            action = parse_line (line, "action");
+            reason = parse_line (line, "reason");
+            status = (parse_line (line, "status") == "True");
+            fname = parse_line (line, "filename");
+
+            if (action == "cancel") {
+                if (status) perform_upload ();
+                return;
+            }
+
+            PictureItem item;
+            if (!find_by_name (fname, out item) && fname.length > 0) return;
+            if (!this.is_started) return;
+
+            if (status && action == "upload") {
+                this.item_info_line_set (item, line);
+                perform_upload ();
+                return;
+
+            } else if ((item != null && item.cancelled) || !this.is_started) {
+                perform_cancel (item.filename);
+                
+            } else if (!status && action == "login") {
+                infobar.push_message (_(reason), "e");
+                this.is_started = false;
+
+            } else if (!status && action == "upload") {
+                item.set_info (false, reason, null, null, null, null, null, null);
+                if (reason.length > 0)
+                    infobar.push_message (_(reason), "e");
+                perform_upload ();
+            }
+        }
+            
+
+
+        private void client_progress_event_cb (int action = -1, string name, double dt, double dr, double ut, double ur) {
+            PictureItem item;
+            if (find_by_name (name, out item)) {
+                if (item.cancelled || !this.is_started) {
+                    this.perform_cancel (item.filename);
+                } else if (action == 0) {
+                    item.fraction = (ut > 0)? ur/ut: 0.0;
+                    int count;
+                    double fract;
+
+                    if (get_average_fraction_and_num (out count, out fract)) {
+                        this.progress_changed (count, fract);
+                    }
+                }
+            }
+        }
+
+
+
+        private void item_info_line_set (PictureItem item, string line) {
+            bool status;
+            string reason, id, key, full, small, server, short_;
+            reason = parse_line (line, "reason");
+            status = (parse_line (line, "status") != "False");
+            id = parse_line (line, "id");
+            key = parse_line (line, "key");
+            full = parse_line (line, "full");
+            small = parse_line (line, "small");
+            server = parse_line (line, "server");
+            short_ = parse_line (line, "short");
+            item.set_info (status, reason, id, key, full, small, server, short_);
+        }
+
+
+        private bool create_upload_query (string fname, out GLib.HashTable<string, GLib.Variant> values) {
+            if (this.create_authdata (out values)) {
+                values.insert ("filename", fname);
+                values.insert ("method", "upload");
+                return true;
+            } else {
+                infobar.push_message (_("Unable to create a query. Please open the settings dialog and check the authorization data and proxies settings."), "e");
+                return false;
+            }
+        }
+
+
+        private bool create_authdata (out GLib.HashTable<string, GLib.Variant> values) {
+            bool result = false;
+            values = new GLib.HashTable <string, GLib.Variant> (str_hash, str_equal);
+            if (!(bool) dconfig.without_profile) {
+                if (dconfig.username.length > 3 && dconfig.password.length > 3) {
+                    values.insert ("user", dconfig.username);
+                    values.insert ("passwd", dconfig.password);
+                    values.insert ("verbose", dconfig.verbose);
+                    values.insert ("autoauth", true);
+                    result = true;
+                } else {
+                    result = false;
+                }
+
+            } else {
+                result = true;
+            }
+            if (dconfig.proxytype != -100 && dconfig.proxynode != null && "http" in dconfig.proxynode && dconfig.proxyport > 0) {
+                values.insert ("proxytype", (int) dconfig.proxytype);
+                values.insert ("proxynode", (string) dconfig.proxynode);
+                values.insert ("proxyport", (int) dconfig.proxyport);
+
+                if (dconfig.proxyuser.length > 2 && dconfig.proxypass.length > 2) {
+                    values.insert ("proxyuser", (string) dconfig.proxyuser);
+                    values.insert ("proxypass", (string) dconfig.proxypass);
+                }
+            }
+            return result;
+        }
+
+
+        private bool perform_upload () {
+            bool result = false;
+            string fname;
+            GLib.HashTable<string, GLib.Variant> values;
+
+            while (this.is_started) {
+                if (exceptions_count >= max_exceptions_count) break;
+                if (!this.get_next_from_queue (out fname)) break;
+                if (!this.create_upload_query (fname, out values)) break;
+
+                try {
+                    client.send_method (values);
+                    exceptions_count = 0;
+                    result = true;
+                    break;
+                } catch (GLib.Error err) {
+                    if (!reconnect ()) {
+                        break;
+                    } else {
+                        result = true;
+                    }
+                }
+            }
+            if (!result) {
+                upload_stop ();
+            } else {
+                this.is_started = result;
+            }
+            return result;
+        }
+
+
+        private void perform_cancel (string fname) {
+            var values = new GLib.HashTable <string, GLib.Variant> (str_hash, str_equal);
+            values.insert ("method", "cancel");
+            values.insert ("name", fname);
+            try {
+                client.send_method (values);
+            } catch (GLib.Error err) {
+                reconnect ();
+            }
+        }
+
+
+        public bool get_average_fraction_and_num (out int count, out double fraction) {
+            count = 0;
+            int all = 0;
+            int complete = 0;
+            double fract = 0.0;
+            foreach (unowned Gtk.Widget widget in mainbox.get_children ()) {
+                item = ((PictureItem) widget);
+                if (!item.cancelled && item.now) {
+                    if (item.current_status == Const.STATUS_FAIL) {
+                        item.fraction = 1.0;
+                    }
+                    if (
+                        item.current_status == Const.STATUS_FAIL ||
+                        item.current_status == Const.STATUS_DONE) {
+                            complete++;
+                    }
+                    fract += item.fraction;
+                    all++;
+                }
+            }
+            count = all - complete;
+            fraction = (all > 0)? fract/all: 0;
+            return (all > 0);
+        }
+
+        private void set_property_now (bool setting) {
+            PictureItem item;
+            last_names = new GLib.List<string> ();
+
+            foreach (Gtk.Widget widget in mainbox.get_children ()) {
+                item = ((PictureItem) widget);
+                if (!setting && item.now && item.current_status == Const.STATUS_DONE) {
+                    last_names.append (item.filename);
+                }
+                item.now = (setting && item.current_status == Const.STATUS_WAIT);
+                if (!setting) item.stop ();
+            }
+        }
+
+
+        public bool has_selected (string status = "all") {
+            bool result = false;
+            foreach (Gtk.Widget widget in mainbox.get_children ()) {
+                item = ((PictureItem) widget);
+                if (item.is_selected && (status == "all" || item.current_status == status)) {
+                    result = true;
+                    break;
+                }
+            }
+            return result;
+        }
+
+
+        //-------------------- Clipboard -------------------------------------------
+        private void pictureitem_copy_event_cb (string link) {
+            set_clipboard (link);
+        }
+
+
+        private void toolbar_copy_activated_cb (int index) {
+            copy_many ();
+        }
+
+
+        public void copy_many () {
+            string text = "";
+            int index = toolbar.radio_active;
+            bool copy_all = ! this.has_selected (Const.STATUS_DONE);
+            foreach (Gtk.Widget widget in mainbox.get_children ()) {
+                item = ((PictureItem) widget);
+                if (item.current_status == Const.STATUS_DONE) {
+                    string tmp = item.get_link (index);
+
+                    if (copy_all || item.is_selected) {
+                        text = (text.length > 0)? text + "\n" + tmp: tmp;
+                    }
+                }
+            }
+            if (text.length > 0) set_clipboard (text);
+        }
+        
+
+        public void copy_last () {
+            string text = "";
+            PictureItem item;
+            int index = toolbar.radio_active;
+
+            if (this.last_names.length () > 0) {
+
+                foreach (string fname in this.last_names) {
+
+                    if (this.find_by_name (fname, out item)) {
+
+                        if (item.current_status == Const.STATUS_DONE) {
+                            string tmp = item.get_link (index);
+                            text = (text.length > 0)? text + "\n" + tmp: tmp;
+                        }
+                    }
+                }
+            }
+            if (text.length > 0) set_clipboard (text);
+        }
+
+
+        public void set_clipboard (string text) {
+            var screen = Gdk.Screen.get_default ();
+            var display = screen.get_display ();
+            var atom = Gdk.Atom.intern ("CLIPBOARD", true);
+            var clip = Gtk.Clipboard.get_for_display (display, atom);
+            clip.set_text (text, text.length);
+            clip.store ();
+        }
+
+
+        private void imaging_action_complete_cb (
+                                                    string srcname,
+                                                    string destname,
+                                                    bool replace,
+                                                    bool ok
+                                                ) {
+
+            if (!ok) return;
+            if (destname.length < 1) return;
+            
+            PictureItem item;
+            if (!this.find_by_name (srcname, out item)) return;
+            
+            if (dconfig.add_modified) this.append (destname);
+        }
+
+
+        private bool create_new_picture_item (string fname, out PictureItem item) {
+            bool result = false;
+            try {
+                item = new PictureItem.from_file (fname, toolbar.radio_active);
+                item.is_selected = toolbar.select_all;
+                item.set_active_type (toolbar.radio_active);
+                item.close_event.connect (pictureitem_close_event_cb);
+                item.copy_event.connect (pictureitem_copy_event_cb);
+                item.open_with_program.connect (pictureitem_open_with_program_cb);
+                try {
+                    string info = client.get_item_info_string (fname);
+                    if (info.length > 0) {
+                        item_info_line_set (item, info);
+                    }
+                    exceptions_count = 0;
+                } catch (GLib.Error err) {
+                    reconnect ();
+                }
+                result = true;
+            } catch (GLib.Error err) {
+            }
+            return result;
+        }
+
+
+        private bool show_imaging_dialog (int mode) {
+            var dialog = new ImagingDialog (this, mode);
+            var resp = dialog.run ();
+            dialog.hide ();
+            dialog.destroy ();
+            while (Gtk.events_pending ()) Gtk.main_iteration ();
+            return (resp == Gtk.ResponseType.OK);
+        }
+
+
+        private void toolbar_imaging_activated_cb () {
+            this.show_imaging_dialog (ImagingDialog.BOTH);
+        }
+
+
+        private async void toolbar_resize_activated_cb () {
+            if (GLib.Thread.supported ()) {
+                if ((dconfig.imaging_dialog_show &&
+                        this.show_imaging_dialog (ImagingDialog.RESIZE)) ||
+                                            !dconfig.imaging_dialog_show) {
+                    try {
+                        GLib.Thread.create<void*> (this.perform_resize, false);
+                        yield;
+                    } catch (GLib.ThreadError err) {
+                        infobar.push_message (err.message, "e");
+                    }
+                }
+
+            } else {
+                infobar.push_message (_("Sorry. The multithreading is not supported."), "e");
+            }
+        }
+
+
+        private async void toolbar_rotate_activated_cb () {
+            if (GLib.Thread.supported ()) {
+                if ((dconfig.imaging_dialog_show &&
+                        this.show_imaging_dialog (ImagingDialog.ROTATE)) ||
+                                            !dconfig.imaging_dialog_show) {
+                    try {
+                        GLib.Thread.create<void*> (this.perform_rotate, false);
+                        yield;
+                    } catch (GLib.ThreadError err) {
+                        infobar.push_message (err.message, "e");
+                    }
+                }
+
+            } else {
+                infobar.push_message (_("Sorry. The multithreading is not supported."), "e");
+            }
+        }
+
+
+        private void* perform_resize () {
+            GLib.List<PictureItem> glist;
+            if (this.get_list_selected_items (out glist)) {
+                int w = -1;
+                int h = -1;
+                int per = -1;
+                bool aspect = false;
+                bool custom = false;
+                bool replace = dconfig.overwrite_modified;
+                string destdir = dconfig.imaging_folder;
+                custom = dconfig.resize_custom;
+                aspect = (custom)? dconfig.resize_aspect: false;
+                w = (custom)? dconfig.resize_width: -1;
+                h = (custom)? dconfig.resize_height: -1;
+                per = (custom)? -1: dconfig.resize_percent;
+                if (!((w > 0 && h > 0) || per > 0)) return null;
+
+                try {
+                    if (miniclient == null) {
+                        miniclient = GLib.Bus.get_proxy_sync<UploaderMiniClient> (GLib.BusType.SESSION, UPLOADER_DBUS_IFACE, UPLOADER_DBUS_PATH);
+                    }
+                    miniclient.resize_complete.connect (imaging_action_complete_cb);
+                    foreach (var item in glist) {
+                        miniclient.resize_image (item.filename, replace, destdir, aspect, w, h, per);
+                    }
+                } catch (GLib.Error err) {
+                }
+            }
+            return null;
+        }
+
+
+        private void* perform_rotate () {
+            GLib.List<PictureItem> glist;
+            if (this.get_list_selected_items (out glist)) {
+                int angle = dconfig.rotate_angle;
+                bool replace = dconfig.overwrite_modified;
+                string destdir = dconfig.imaging_folder;
+                if (angle == 0) return null;
+                try {
+                    if (miniclient == null) {
+                        miniclient = GLib.Bus.get_proxy_sync<UploaderMiniClient> (GLib.BusType.SESSION, UPLOADER_DBUS_IFACE, UPLOADER_DBUS_PATH);
+                    }
+                    miniclient.rotate_complete.connect (imaging_action_complete_cb);
+                    foreach (var item in glist) {
+                        miniclient.rotate_image (item.filename, replace, destdir, angle);
+                    }
+                } catch (GLib.Error err) {
+                }
+            }
+            return null;
+        }
+
+
+        private bool get_list_selected_items (out GLib.List<PictureItem> glist) {
+            bool result = false;
+            glist = new GLib.List<PictureItem> ();
+            foreach (var widget in this.mainbox.get_children ()) {
+                PictureItem item = (PictureItem) widget;
+                if (item.is_selected) {
+                    glist.append (item);
+                    result = true;
+                }
+            }
+            return result;
+        }
+        
+    } /*--------------- End class UploaderWindow -----------------------------*/
+//------------------------------------------------------------------------------
+}
+
+//------------------------------------------------------------------------------
