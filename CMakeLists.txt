@@ -27,7 +27,7 @@ PKG_CHECK_MODULES (NAUTILUS QUIET libnautilus-extension)
 
 # Set version of GTK+
     IF (NOT DEFINED GTKVER)
-        SET (GTKVER 2.0)
+        SET (GTKVER 3.0)
     ENDIF ()
 
     
@@ -41,7 +41,7 @@ PKG_CHECK_MODULES (NAUTILUS QUIET libnautilus-extension)
     ENDIF ()
 
 
-    IF (NOT WITH_UNITY OR NOT UNITY_FOUND OR GTKVER GREATER 2.0)
+    IF (NOT WITH_UNITY OR NOT UNITY_FOUND OR GTKVER LESS 3.0)
         SET (UNITY_FOUND FALSE)
         SET (WITH_UNITY FALSE)
     ENDIF ()
