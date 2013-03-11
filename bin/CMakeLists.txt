@@ -48,7 +48,8 @@ VALA_PRECOMPILE(
     PACKAGES
         gio-2.0
         gdk-pixbuf-2.0
-        gtk+-${GTKVER}
+# set to gtk+-2 if need
+        gtk+-3
         ${PROJECT}
         gexiv2
         ${UNITY_VAPI}

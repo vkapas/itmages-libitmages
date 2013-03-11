@@ -59,7 +59,7 @@ PKG_CHECK_MODULES (NAUTILUS QUIET libnautilus-extension)
         MESSAGE ("-- Build without Nautilus extension")
     ENDIF ()
 #-------------------------------------------------------------------------------
-PKG_CHECK_MODULES (GTK REQUIRED gtk+-${GTKVER})
+PKG_CHECK_MODULES (GTK REQUIRED gtk+-3)
 PKG_CHECK_MODULES (GLIB REQUIRED glib-2.0)
 PKG_CHECK_MODULES (GEXIV2 REQUIRED gexiv2)
 #-------------------------------------------------------------------------------

@@ -66,10 +66,12 @@ VALA_PRECOMPILE(
     PACKAGES
         glib-2.0
         posix
-        gtk+-${GTKVER}
+# set gtk+-2 if need
+        gtk+-3
         gio-2.0
         gexiv2
-        gdk-x11-${GTKVER}
+# set gdk-x11-2 if need
+        gdk-x11-3
     OPTIONS
         -C
         --thread
