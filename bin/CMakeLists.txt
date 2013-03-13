@@ -83,7 +83,12 @@ INCLUDE_DIRECTORIES (
 ADD_EXECUTABLE (${EXECUTABLE} ${VALA_C})
 
 
-TARGET_LINK_LIBRARIES (${EXECUTABLE} ${CMAKE_BINARY_DIR}/src/${PROJECT}.so ${UNITY_LIBS})
+TARGET_LINK_LIBRARIES (${EXECUTABLE} 
+                                    ${CMAKE_BINARY_DIR}/src/${PROJECT}.so 
+                                    ${GTK_LIBRARIES} 
+                                    ${GLIB_LIBRARIES}
+                                    ${UNITY_LIBS} 
+                      )
 
 #
 # Installation
