@@ -311,9 +311,9 @@ namespace Itmages {
                     foreach (var s in srcmeta.get_exif_tags ()) {
                         string? val;
                         int nom, den;
-                        val = srcmeta.get_exif_tag_string (s);
-                        if (val != null && destmeta.set_exif_tag_string (s, (string) val)) continue;
-                        if (destmeta.set_exif_tag_long (s, srcmeta.get_exif_tag_long (s))) continue;
+                        val = srcmeta.get_tag_string (s);
+                        if (val != null && destmeta.set_tag_string (s, (string) val)) continue;
+                        if (destmeta.set_tag_long (s, srcmeta.get_tag_long (s))) continue;
                         if (srcmeta.get_exif_tag_rational (s, out nom, out den)) {
                             if (!destmeta.set_exif_tag_rational (s, nom, den)) continue;
                         }
@@ -322,9 +322,9 @@ namespace Itmages {
                     /*
                         Restore size and orientation to destinational image
                     */
-                    destmeta.set_exif_tag_long ("Exif.Photo.PixelXDimension", (long) xresol);
-                    destmeta.set_exif_tag_long ("Exif.Photo.PixelYDimension", (long) yresol);
-                    destmeta.set_exif_tag_string ("Exif.Image.Software", "libitmages");
+                    destmeta.set_tag_long ("Exif.Photo.PixelXDimension", (long) xresol);
+                    destmeta.set_tag_long ("Exif.Photo.PixelYDimension", (long) yresol);
+                    destmeta.set_tag_string ("Exif.Image.Software", "libitmages");
                     destmeta.set_orientation (orientation);
                     destmeta.save_file (fname);
                     ok = true;
