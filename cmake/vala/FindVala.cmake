@@ -45,7 +45,7 @@
 
 # Search for the valac executable in the usual system paths.
 find_program(VALA_EXECUTABLE
-  NAMES valac-0.14)
+  NAMES valac)
 
 # Handle the QUIETLY and REQUIRED arguments, which may be given to the find call.
 # Furthermore set VALA_FOUND to TRUE if Vala has been found (aka.
