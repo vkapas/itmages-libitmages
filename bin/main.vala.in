@@ -3,6 +3,9 @@
 
 //private Itmages.UploaderWindow window;
 
+#if !g_thread_init
+public void g_thread_init (void *ptr) { }
+#endif
 
 private void on_bus_aquired (GLib.DBusConnection conn) {
     var upserv = new Itmages.UploaderMiniServer (Itmages.UploaderWindow.get_default ());
