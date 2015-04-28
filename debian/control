@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 7), cdbs, cmake, libvala-0.14-dev, libglib2.0-dev, 
 Homepage: https://launchpad.net/~itmages
 
 Package: libitmages
-Depends: libdbus-glib-1-2, itmages-service (>= 0.36), libgtk2.0-0, libglib2.0-0, libgexiv2-0, unity, unity-common, nautilus (>=3.0)
+Depends: libdbus-glib-1-2, itmages-service (>= 0.36), libgtk2.0-0, libglib2.0-0, libgexiv2-1, unity, unity-common, nautilus (>=3.0)
 Provides: itmages-nautilus-extension, itmages-unity-plugin
 Conflicts: itmages-nautilus-extension, itmages-unity-plugin
 Replaces: itmages-nautilus-extension, itmages-unity-plugin
